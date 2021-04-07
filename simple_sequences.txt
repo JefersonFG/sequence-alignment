@@ -1,11 +1,9 @@
 -5
 5
 -4
-
 Sequence 1
 Description 1
 AGCT
-
 Sequence 2
 Description 2
 ACGT
