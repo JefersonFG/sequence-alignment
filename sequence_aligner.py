@@ -17,6 +17,13 @@ class SequenceDefinition:
         self.sequence = sequence
 
 
+class Direction(enumerate):
+    none = 0
+    diagonal = 1
+    up = 2
+    left = 3
+
+
 class NeedlemanWunschAligner:
     def __init__(self, nw_scores, nw_sequence_list):
         self.scores = nw_scores
@@ -26,33 +33,76 @@ class NeedlemanWunschAligner:
         # Takes the sequences in pairs and runs the algorithm
         for i in range(len(self.sequence_definition_list)):
             for j in range(i + 1, len(self.sequence_definition_list)):
-                self.__build_similarity_matrix(self.sequence_definition_list[i].sequence,
-                                               self.sequence_definition_list[j].sequence)
+                sequence_definition1 = self.sequence_definition_list[i]
+                sequence_definition2 = self.sequence_definition_list[j]
 
-        raise Exception("Method not fully implemented")
+                self.__build_similarity_matrix(sequence_definition1.sequence, sequence_definition2.sequence)
+                final_score, alignment1, alignment2 = self.__compute_optimal_sequence(sequence_definition1.sequence,
+                                                                                      sequence_definition2.sequence)
+
+                # Print results
+                print(f"Alignment for sequences {sequence_definition1.identifier} and {sequence_definition2.identifier}"
+                      f":\nAlignment 1: {alignment1}\nAlignment 2: {alignment2}\nScore: {final_score}")
 
     def __build_similarity_matrix(self, sequence1, sequence2):
-        num_rows = len(sequence2) + 1
-        num_columns = len(sequence1) + 1
-        self.similarity_matrix = [[0 for _ in range(num_rows)] for _ in range(num_columns)]
+        num_rows = len(sequence1) + 1
+        num_columns = len(sequence2) + 1
+        self.similarity_matrix = [[(0, Direction.none) for _ in range(num_columns)] for _ in range(num_rows)]
 
         for i in range(1, num_rows):
-            self.similarity_matrix[i][0] = self.scores.gap * i
+            self.similarity_matrix[i][0] = (self.scores.gap * i, Direction.none)
         for j in range(1, num_columns):
-            self.similarity_matrix[0][j] = self.scores.gap * j
+            self.similarity_matrix[0][j] = (self.scores.gap * j, Direction.none)
 
         for i in range(1, num_rows):
             for j in range(1, num_columns):
                 s = self.scores.match if sequence1[i - 1] == sequence2[j - 1] else self.scores.mismatch
-                match = self.similarity_matrix[i - 1][j - 1] + s
-                delete = self.similarity_matrix[i - 1][j] + self.scores.gap
-                insert = self.similarity_matrix[i][j - 1] + self.scores.gap
-                self.similarity_matrix[i][j] = max(match, delete, insert)
+                match = self.similarity_matrix[i - 1][j - 1][0] + s
+                delete = self.similarity_matrix[i - 1][j][0] + self.scores.gap
+                insert = self.similarity_matrix[i][j - 1][0] + self.scores.gap
 
-        # Print matrix
-        for row in self.similarity_matrix:
-            print(' '.join(map("{:3d}".format, row)))
-        raise Exception("Method not fully implemented")
+                score = max(match, delete, insert)
+
+                if score == match:
+                    direction = Direction.diagonal
+                elif score == delete:
+                    direction = Direction.left
+                elif score == insert:
+                    direction = Direction.up
+                else:
+                    raise Exception("Failed to determine direction")
+
+                self.similarity_matrix[i][j] = (score, direction)
+
+    def __compute_optimal_sequence(self, sequence1, sequence2):
+        num_rows = len(sequence1) + 1
+        num_columns = len(sequence2) + 1
+        i = num_rows - 1
+        j = num_columns - 1
+
+        alignment1 = ""
+        alignment2 = ""
+
+        final_score, _ = self.similarity_matrix[i][j]
+
+        while i > 0 or j > 0:
+            _, current_direction = self.similarity_matrix[i][j]
+
+            if current_direction == Direction.diagonal:
+                alignment1 = sequence1[i - 1] + alignment1
+                alignment2 = sequence2[j - 1] + alignment2
+                i -= 1
+                j -= 1
+            elif current_direction == Direction.left:
+                alignment1 = sequence1[i - 1] + alignment1
+                alignment2 = '-' + alignment2
+                i -= 1
+            else:
+                alignment1 = '-' + alignment1
+                alignment2 = sequence2[j - 1] + alignment2
+                j -= 1
+
+        return final_score, alignment1, alignment2
 
 
 # Helper functions
